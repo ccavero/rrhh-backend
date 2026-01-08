@@ -4,11 +4,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsuarioModule } from './usuario/usuario.module';
 import { AsistenciaModule } from './asistencia/asistencia.module';
 import { PermisoModule } from './permiso/permiso.module';
+import { AuthModule } from './auth/auth.module';
+import { CorsController } from './common/controllers/cors.controller';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '.env',
     }),
     TypeOrmModule.forRoot({
       type: 'postgres',
@@ -23,6 +26,9 @@ import { PermisoModule } from './permiso/permiso.module';
     UsuarioModule,
     AsistenciaModule,
     PermisoModule,
+    AuthModule,
   ],
+  controllers: [CorsController],
+  providers: [],
 })
 export class AppModule {}

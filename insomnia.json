@@ -1,0 +1,180 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2025-02-12T19:00:00.000Z",
+  "__export_source": "chatgpt-insomnia-export",
+  "resources": [
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "name": "Base Environment",
+      "data": {
+        "host": "http://localhost:4000",
+        "token": ""
+      }
+    },
+    {
+      "_id": "wrk_backend_agetic",
+      "_type": "workspace",
+      "name": "Backend AGETIC – RRHH",
+      "description": "Colección completa para probar el backend de RRHH (Usuarios, Asistencia, Permisos)."
+    },
+
+    ##############################################################
+    # AUTH
+    ##############################################################
+    {
+    "_id": "fld_auth",
+    "_type": "request_group",
+    "parentId": "wrk_backend_agetic",
+    "name": "Auth"
+    },
+    {
+    "_id": "req_login",
+    "_type": "request",
+    "parentId": "fld_auth",
+    "name": "Login",
+    "method": "POST",
+    "url": "{{ host }}/auth/login",
+    "body": {
+    "mimeType": "application/json",
+    "text": "{\n  \"email\": \"admin@agetic.gob.bo\",\n  \"password\": \"123456\"\n}"
+    },
+    "headers": [
+    { "name": "Content-Type", "value": "application/json" }
+    ],
+    "authentication": {},
+    "metaSortKey": -1,
+    "tests": {
+    "script": "const body = JSON.parse(responseBody);\nif (body.access_token) {\n  insomnia.environment.set(\"token\", body.access_token);\n}"
+    }
+    },
+
+    ##############################################################
+    # USUARIOS
+    ##############################################################
+    {
+    "_id": "fld_usuarios",
+    "_type": "request_group",
+    "parentId": "wrk_backend_agetic",
+    "name": "Usuarios"
+    },
+    {
+    "_id": "req_usuarios_listar",
+    "_type": "request",
+    "parentId": "fld_usuarios",
+    "name": "Listar Usuarios",
+    "method": "GET",
+    "url": "{{ host }}/usuarios",
+    "headers": [
+    { "name": "Authorization", "value": "Bearer {{ token }}" }
+    ]
+    },
+    {
+    "_id": "req_usuarios_crear",
+    "_type": "request",
+    "parentId": "fld_usuarios",
+    "name": "Crear Usuario",
+    "method": "POST",
+    "url": "{{ host }}/usuarios",
+    "headers": [
+    { "name": "Authorization", "value": "Bearer {{ token }}" },
+    { "name": "Content-Type", "value": "application/json" }
+    ],
+    "body": {
+    "mimeType": "application/json",
+    "text": "{\n  \"nombre\": \"Carlos\",\n  \"apellido\": \"Cavero\",\n  \"email\": \"nuevo@correo.com\",\n  \"password\": \"123456\",\n  \"id_rol\": \"FUNCIONARIO\"\n}"
+    }
+    },
+
+    ##############################################################
+    # ASISTENCIA
+    ##############################################################
+    {
+    "_id": "fld_asistencia",
+    "_type": "request_group",
+    "parentId": "wrk_backend_agetic",
+    "name": "Asistencia"
+    },
+    {
+    "_id": "req_asistencia_crear",
+    "_type": "request",
+    "parentId": "fld_asistencia",
+    "name": "Registrar Asistencia",
+    "method": "POST",
+    "url": "{{ host }}/asistencia",
+    "headers": [
+    { "name": "Authorization", "value": "Bearer {{ token }}" },
+    { "name": "Content-Type", "value": "application/json" }
+    ],
+    "body": {
+    "mimeType": "application/json",
+    "text": "{\n  \"tipo\": \"entrada\",\n  \"origen\": \"web\",\n  \"ip_registro\": \"192.168.1.10\"\n}"
+    }
+    },
+    {
+    "_id": "req_asistencia_listar",
+    "_type": "request",
+    "parentId": "fld_asistencia",
+    "name": "Listar Asistencias",
+    "method": "GET",
+    "url": "{{ host }}/asistencia",
+    "headers": [
+    { "name": "Authorization", "value": "Bearer {{ token }}" }
+    ]
+    },
+
+    ##############################################################
+    # PERMISOS
+    ##############################################################
+    {
+    "_id": "fld_permisos",
+    "_type": "request_group",
+    "parentId": "wrk_backend_agetic",
+    "name": "Permisos"
+    },
+    {
+    "_id": "req_permiso_crear",
+    "_type": "request",
+    "parentId": "fld_permisos",
+    "name": "Crear Permiso",
+    "method": "POST",
+    "url": "{{ host }}/permisos",
+    "headers": [
+    { "name": "Authorization", "value": "Bearer {{ token }}" },
+    { "name": "Content-Type", "value": "application/json" }
+    ],
+    "body": {
+    "mimeType": "application/json",
+    "text": "{\n  \"tipo\": \"VACACION\",\n  \"motivo\": \"Descanso anual\",\n  \"fecha_inicio\": \"2025-03-01\",\n  \"fecha_fin\": \"2025-03-03\"\n}"
+    }
+    },
+    {
+    "_id": "req_permiso_pendientes",
+    "_type": "request",
+    "parentId": "fld_permisos",
+    "name": "Listar Pendientes",
+    "method": "GET",
+    "url": "{{ host }}/permisos/pendientes",
+    "headers": [
+    { "name": "Authorization", "value": "Bearer {{ token }}" }
+    ]
+    },
+    {
+    "_id": "req_permiso_resolver",
+    "_type": "request",
+    "parentId": "fld_permisos",
+    "name": "Resolver Permiso",
+    "method": "PATCH",
+    "url": "{{ host }}/permisos/{{ id_permiso }}",
+    "headers": [
+    { "name": "Authorization", "value": "Bearer {{ token }}" },
+    { "name": "Content-Type", "value": "application/json" }
+    ],
+    "body": {
+    "mimeType": "application/json",
+    "text": "{\n  \"estado\": \"APROBADO\"\n}"
+    }
+    }
+  ]
+}
