@@ -1,40 +1,30 @@
-import { IsString, IsNotEmpty, IsIn, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsIn,
+  IsDateString,
+  IsBoolean,
+  IsOptional,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UsuarioResponseDto } from '../../usuario/dto/usuario.dto';
-
-// ===========================================================
-// ENUMS RECOMENDADOS (Opcional pero profesional)
-// ===========================================================
-export enum TipoPermisoEnum {
-  VACACION = 'VACACION',
-  ENFERMEDAD = 'ENFERMEDAD',
-  ONOMASTICO = 'ONOMASTICO',
-  COMISION = 'COMISION',
-  GOCE = 'GOCE',
-  SIN_GOCE = 'SIN_GOCE',
-}
-
-export enum EstadoPermisoEnum {
-  PENDIENTE = 'PENDIENTE',
-  APROBADO = 'APROBADO',
-  RECHAZADO = 'RECHAZADO',
-}
+import { EstadoPermiso, TipoPermiso } from '../entities/permiso.entity';
 
 // ===========================================================
 // DTO: Crear Permiso
 // ===========================================================
 export class CrearPermisoDto {
   @ApiProperty({
-    example: TipoPermisoEnum.VACACION,
+    example: TipoPermiso.VACACION,
     description: 'Tipo de permiso solicitado',
-    enum: Object.values(TipoPermisoEnum),
+    enum: Object.values(TipoPermiso),
   })
   @IsString()
-  @IsIn(Object.values(TipoPermisoEnum))
-  tipo: string;
+  @IsIn(Object.values(TipoPermiso))
+  tipo: TipoPermiso;
 
   @ApiProperty({
-    example: 'Malestar general y fiebre.',
+    example: 'Viaje familiar.',
     description: 'Motivo del permiso',
   })
   @IsString()
@@ -42,58 +32,82 @@ export class CrearPermisoDto {
   motivo: string;
 
   @ApiProperty({
-    example: '2025-03-01',
-    description: 'Fecha de inicio del permiso (ISO8601)',
+    example: '2025-12-03',
+    description: 'Fecha de inicio del permiso (YYYY-MM-DD)',
   })
   @IsDateString()
   fecha_inicio: string;
 
   @ApiProperty({
-    example: '2025-03-03',
-    description: 'Fecha final del permiso (ISO8601)',
+    example: '2025-12-05',
+    description: 'Fecha final del permiso (YYYY-MM-DD)',
   })
   @IsDateString()
   fecha_fin: string;
 }
 
 // ===========================================================
-// DTO: Actualizar Estado del Permiso
+// DTO: Resolver Permiso (RRHH/ADMIN)
 // ===========================================================
-export class ActualizarEstadoPermisoDto {
+export class ResolverPermisoDto {
   @ApiProperty({
-    example: EstadoPermisoEnum.APROBADO,
+    example: EstadoPermiso.APROBADO,
     description: 'Nuevo estado del permiso',
-    enum: Object.values(EstadoPermisoEnum),
+    enum: [EstadoPermiso.APROBADO, EstadoPermiso.RECHAZADO],
   })
   @IsString()
-  @IsIn(Object.values(EstadoPermisoEnum))
-  estado: string;
+  @IsIn([EstadoPermiso.APROBADO, EstadoPermiso.RECHAZADO])
+  estado: EstadoPermiso;
+
+  @ApiPropertyOptional({
+    example: true,
+    description:
+        'Si el permiso es con goce (pago). Solo relevante si se APRUEBA.',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  con_goce?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'Aprobado por RRHH con goce según norma interna.',
+    description: 'Observación de la resolución (trazabilidad).',
+  })
+  @IsString()
+  @IsOptional()
+  observacion_resolucion?: string;
 }
 
 // ===========================================================
-// DTO: Respuesta del permiso
+// DTO: Respuesta
 // ===========================================================
 export class PermisoResponseDto {
   @ApiProperty({ example: 'fb92b77e-b0e5-4b5d-844e-cbe6201b795a' })
   id_permiso: string;
 
-  @ApiProperty({ enum: Object.values(TipoPermisoEnum) })
-  tipo: string;
+  @ApiProperty({ enum: Object.values(TipoPermiso) })
+  tipo: TipoPermiso;
 
   @ApiProperty({ example: 'Viaje familiar' })
   motivo: string;
 
-  @ApiProperty({ example: '2025-03-01' })
+  @ApiProperty({ example: '2025-12-03' })
   fecha_inicio: Date;
 
-  @ApiProperty({ example: '2025-03-05' })
+  @ApiProperty({ example: '2025-12-05' })
   fecha_fin: Date;
 
   @ApiProperty({
-    enum: Object.values(EstadoPermisoEnum),
-    example: EstadoPermisoEnum.PENDIENTE,
+    enum: Object.values(EstadoPermiso),
+    example: EstadoPermiso.PENDIENTE,
   })
-  estado: string;
+  estado: EstadoPermiso;
+
+  @ApiProperty({ example: false })
+  con_goce: boolean;
+
+  @ApiPropertyOptional({ example: 'Aprobado con goce.' })
+  observacion_resolucion?: string | null;
 
   @ApiProperty({ example: '2025-02-14T10:00:00Z' })
   creado_en: Date;
@@ -101,15 +115,9 @@ export class PermisoResponseDto {
   @ApiPropertyOptional({ example: '2025-02-15T16:30:00Z' })
   resuelto_en?: Date | null;
 
-  @ApiProperty({
-    description: 'Usuario que solicitó el permiso',
-    type: UsuarioResponseDto,
-  })
+  @ApiProperty({ type: UsuarioResponseDto })
   solicitante: UsuarioResponseDto;
 
-  @ApiPropertyOptional({
-    description: 'Usuario que resolvió el permiso',
-    type: UsuarioResponseDto,
-  })
+  @ApiPropertyOptional({ type: UsuarioResponseDto })
   resolvedor?: UsuarioResponseDto | null;
 }

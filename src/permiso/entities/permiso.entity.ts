@@ -5,6 +5,7 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  CreateDateColumn,
 } from 'typeorm';
 import { Usuario } from '../../usuario/entities/usuario.entity';
 
@@ -28,8 +29,8 @@ export class Permiso {
   @PrimaryGeneratedColumn('uuid')
   id_permiso: string;
 
-  @Column({ length: 30 })
-  tipo: string;
+  @Column({ type: 'enum', enum: TipoPermiso })
+  tipo: TipoPermiso;
 
   @Column({ type: 'text' })
   motivo: string;
@@ -40,13 +41,20 @@ export class Permiso {
   @Column({ type: 'date' })
   fecha_fin: Date;
 
-  @Column({ length: 20 })
-  estado: string; // PENDIENTE / APROBADO / RECHAZADO
+  @Column({ type: 'enum', enum: EstadoPermiso, default: EstadoPermiso.PENDIENTE })
+  estado: EstadoPermiso;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  // ✅ se decide al resolver (RRHH/ADMIN)
+  @Column({ type: 'boolean', default: false })
+  con_goce: boolean;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  observacion_resolucion: string | null;
+
+  @CreateDateColumn({ type: 'timestamptz' })
   creado_en: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   resuelto_en: Date | null;
 
   @ManyToOne(() => Usuario, (u) => u.permisos_solicitados)
@@ -58,7 +66,7 @@ export class Permiso {
 
   @ManyToOne(() => Usuario, (u) => u.permisos_resueltos, { nullable: true })
   @JoinColumn({ name: 'id_resolvedor' })
-  resolvedor?: Usuario;
+  resolvedor?: Usuario | null;
 
   @Column({ type: 'uuid', nullable: true })
   id_resolvedor: string | null;

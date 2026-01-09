@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+
 import { Usuario } from '../../usuario/entities/usuario.entity';
 import { LoginResponseDto } from '../dto/login.dto';
 import { UsuarioResponseDto } from '../../usuario/dto/usuario.dto';
@@ -10,15 +11,17 @@ import { UsuarioResponseDto } from '../../usuario/dto/usuario.dto';
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(Usuario)
-    private readonly usuarioRepo: Repository<Usuario>,
-    private readonly jwtService: JwtService,
+      @InjectRepository(Usuario)
+      private readonly usuarioRepo: Repository<Usuario>,
+      private readonly jwtService: JwtService,
   ) {}
 
   async validarUsuario(email: string, password: string): Promise<Usuario> {
+    const emailNorm = email.toLowerCase().trim();
+
     const usuario = await this.usuarioRepo.findOne({
-      where: { email },
-      // importante: incluir password_hash explícitamente si lo tienes con select: false
+      where: { email: emailNorm },
+      // incluir password_hash explícitamente (select: false)
       select: [
         'id_usuario',
         'nombre',
@@ -36,8 +39,11 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const valido = await bcrypt.compare(password, usuario.password_hash);
+    if (usuario.estado !== 'ACTIVO') {
+      throw new UnauthorizedException('Usuario inactivo');
+    }
 
+    const valido = await bcrypt.compare(password, usuario.password_hash);
     if (!valido) {
       throw new UnauthorizedException('Credenciales inválidas');
     }

@@ -1,143 +1,136 @@
 import {
-  IsNotEmpty,
+  IsIn,
+  IsOptional,
   IsString,
   IsUUID,
-  IsIn,
-  IsIP,
-  IsDateString,
-  IsOptional,
+  IsNotEmpty,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UsuarioResponseDto } from '../../usuario/dto/usuario.dto';
 
-// ======================================================
-// DTO PARA CREAR ASISTENCIA
-// ======================================================
-export class CrearAsistenciaDto {
+const TIPOS = ['ENTRADA', 'SALIDA'] as const;
+const ORIGENES = ['web', 'manual', 'app'] as const;
+const ESTADOS = ['VALIDA', 'INVALIDA', 'ANULADA'] as const;
+
+export class MarcarAsistenciaDto {
+  @ApiProperty({
+    example: 'ENTRADA',
+    enum: TIPOS,
+    description: 'Tipo de marcación',
+  })
+  @IsString()
+  @IsIn(TIPOS)
+  tipo: (typeof TIPOS)[number];
+
+  @ApiPropertyOptional({
+    example: 'web',
+    enum: ORIGENES,
+    description: 'Origen del registro',
+    default: 'web',
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(ORIGENES)
+  origen?: (typeof ORIGENES)[number];
+}
+
+export class CrearAsistenciaManualDto {
   @ApiProperty({
     example: 'f4a1db83-5717-4ac3-afaf-1b1c40c4e3b7',
-    description: 'ID del usuario que registra la asistencia',
+    description: 'ID del usuario al que se le crea la asistencia manual',
   })
   @IsUUID('all')
   @IsNotEmpty()
   id_usuario: string;
 
-  @ApiProperty({
-    example: 'entrada',
-    enum: ['entrada', 'salida'],
-    description: 'Tipo de marcación realizada',
-  })
+  @ApiProperty({ example: 'ENTRADA', enum: TIPOS })
   @IsString()
-  @IsIn(['entrada', 'salida'])
-  tipo: string;
+  @IsIn(TIPOS)
+  tipo: (typeof TIPOS)[number];
 
-  @ApiProperty({
-    example: 'web',
-    enum: ['web', 'manual', 'app'],
-    description: 'Origen del registro de asistencia',
-  })
-  @IsString()
-  @IsIn(['web', 'manual', 'app'])
-  origen: string;
-
-  @ApiProperty({
-    example: '192.168.1.15',
-    description: 'Dirección IP desde la cual se genera el registro',
-  })
-  @IsIP()
-  ip_registro: string;
-
-  @ApiProperty({
-    example: '2025-02-15T08:00:00.000Z',
-    description: 'Fecha y hora del registro en formato ISO8601',
-  })
-  @IsDateString()
-  fecha_hora: string;
-}
-
-// ======================================================
-// DTO PARA ACTUALIZAR ASISTENCIA (RRHH / ADMIN)
-// ======================================================
-export class ActualizarAsistenciaDto {
   @ApiPropertyOptional({
-    example: 'INVALIDA',
-    enum: ['VALIDA', 'INVALIDA', 'ANULADA'],
-    description: 'Nuevo estado de la asistencia',
+    example: 'manual',
+    enum: ORIGENES,
+    default: 'manual',
   })
   @IsOptional()
   @IsString()
-  @IsIn(['VALIDA', 'INVALIDA', 'ANULADA'])
-  estado?: string;
+  @IsIn(ORIGENES)
+  origen?: (typeof ORIGENES)[number];
 
   @ApiPropertyOptional({
-    example: 'c9b2aaae-2149-4cb3-855a-90d12f71981b',
-    description: 'ID del validador que modifica la asistencia',
+    example: 'Corrección por olvido de marcación.',
+    description: 'Observación para auditoría',
   })
   @IsOptional()
-  @IsUUID()
-  id_validador?: string;
+  @IsString()
+  observacion?: string;
+
+  @ApiPropertyOptional({
+    example: '2025-12-01T08:30:00.000Z',
+    description:
+        'Fecha/hora exacta que se quiere registrar. Si no se manda, se usa "ahora".',
+  })
+  @IsOptional()
+  @IsString()
+  fecha_hora?: string;
 }
 
-// ======================================================
-// DTO PARA RESPUESTA: AsistenciaResponseDto
-// ======================================================
+export class AnularAsistenciaDto {
+  @ApiPropertyOptional({
+    example: 'ANULADA',
+    enum: ESTADOS,
+    description: 'Estado a aplicar (normalmente ANULADA)',
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(ESTADOS)
+  estado?: (typeof ESTADOS)[number];
+
+  @ApiPropertyOptional({
+    example: 'Anulación por duplicidad.',
+    description: 'Motivo/observación',
+  })
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+}
+
 export class AsistenciaResponseDto {
-  @ApiProperty({
-    example: '9f51457b-1d9a-4633-bcd3-abc12345abcd',
-    description: 'ID único del registro de asistencia',
-  })
+  @ApiProperty({ example: '9f51457b-1d9a-4633-bcd3-abc12345abcd' })
   id_asistencia: string;
 
-  @ApiProperty({
-    example: '2025-02-15T08:00:00.000Z',
-    description: 'Fecha y hora exacta del registro',
-  })
+  @ApiProperty({ example: '2025-02-15T08:00:00.000Z' })
   fecha_hora: Date;
 
-  @ApiProperty({
-    example: 'entrada',
-    enum: ['entrada', 'salida'],
-  })
+  @ApiProperty({ example: 'ENTRADA', enum: TIPOS })
   tipo: string;
 
-  @ApiProperty({
-    example: 'VALIDA',
-    enum: ['VALIDA', 'INVALIDA', 'ANULADA'],
-    description: 'Estado actual del registro de asistencia',
-  })
+  @ApiProperty({ example: 'VALIDA', enum: ESTADOS })
   estado: string;
 
-  @ApiProperty({
-    example: 'web',
-    enum: ['web', 'manual', 'app'],
-  })
+  @ApiProperty({ example: 'web', enum: ORIGENES })
   origen: string;
 
-  @ApiProperty({
-    example: '192.168.1.15',
-    description: 'IP desde donde se generó la asistencia',
-  })
-  ip_registro: string;
+  @ApiPropertyOptional({ example: '192.168.1.15' })
+  ip_registro: string | null;
 
-  @ApiProperty({
-    example: 'f4a1db83-5717-4ac3-afaf-1b1c40c4e3b7',
+  @ApiPropertyOptional({
+    example: 'Seeder: entrada / Corrección manual / etc.',
   })
+  observacion?: string | null;
+
+  @ApiProperty({ example: 'f4a1db83-5717-4ac3-afaf-1b1c40c4e3b7' })
   id_usuario: string;
-
-  @ApiProperty({
-    description: 'Datos del usuario que realizó la marcación',
-    type: UsuarioResponseDto,
-  })
-  usuario: UsuarioResponseDto;
 
   @ApiPropertyOptional({
     example: 'c9b2aaae-2149-4cb3-855a-90d12f71981b',
   })
   id_validador?: string | null;
 
-  @ApiPropertyOptional({
-    description: 'Datos del validador (si existe)',
-    type: UsuarioResponseDto,
-  })
+  @ApiPropertyOptional({ type: UsuarioResponseDto })
+  usuario?: UsuarioResponseDto;
+
+  @ApiPropertyOptional({ type: UsuarioResponseDto })
   validador?: UsuarioResponseDto | null;
 }

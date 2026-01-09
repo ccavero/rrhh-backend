@@ -10,7 +10,7 @@ import {
 import { PermisoService } from '../services/permiso.service';
 import {
   CrearPermisoDto,
-  ActualizarEstadoPermisoDto,
+  ResolverPermisoDto,
   PermisoResponseDto,
 } from '../dto/permiso.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -27,13 +27,13 @@ import {
 
 @ApiTags('permisos')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard) // 👈 Primero JWT, luego Roles
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('permisos')
 export class PermisoController {
   constructor(private readonly permisoService: PermisoService) {}
 
   // ======================================================
-  // CREAR PERMISO (FUNCIONARIO / ADMIN / RRHH)
+  // CREAR PERMISO (cualquier usuario autenticado)
   // ======================================================
   @Post()
   @Roles('FUNCIONARIO', 'ADMIN', 'RRHH')
@@ -44,8 +44,8 @@ export class PermisoController {
     type: PermisoResponseDto,
   })
   crear(
-    @Body() dto: CrearPermisoDto,
-    @User() usuario: any,
+      @Body() dto: CrearPermisoDto,
+      @User() usuario: any,
   ): Promise<PermisoResponseDto> {
     // El solicitante se obtiene SIEMPRE del token
     return this.permisoService.crear(dto, usuario.id_usuario);
@@ -75,6 +75,8 @@ export class PermisoController {
   @Roles('ADMIN', 'RRHH')
   @ApiOperation({
     summary: 'Aprobar o rechazar un permiso (RRHH / ADMIN)',
+    description:
+        'Permite decidir el estado (APROBADO/RECHAZADO) y si es con goce (pago) cuando se aprueba.',
   })
   @ApiParam({ name: 'id', description: 'ID del permiso a resolver' })
   @ApiResponse({
@@ -83,9 +85,9 @@ export class PermisoController {
     type: PermisoResponseDto,
   })
   resolver(
-    @Param('id') id: string,
-    @Body() dto: ActualizarEstadoPermisoDto,
-    @User() usuario: any,
+      @Param('id') id: string,
+      @Body() dto: ResolverPermisoDto,
+      @User() usuario: any,
   ): Promise<PermisoResponseDto> {
     // El resolvedor (RRHH/ADMIN) se obtiene del token
     return this.permisoService.resolver(id, dto, usuario.id_usuario);
@@ -104,7 +106,7 @@ export class PermisoController {
     description: 'Permisos del solicitante',
     type: [PermisoResponseDto],
   })
-  listarMios(@User() usuario): Promise<PermisoResponseDto[]> {
+  listarMios(@User() usuario: any): Promise<PermisoResponseDto[]> {
     return this.permisoService.listarPorSolicitante(usuario.id_usuario);
   }
 }

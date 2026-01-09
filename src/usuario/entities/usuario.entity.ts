@@ -1,6 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { Asistencia } from '../../asistencia/entities/asistencia.entity';
 import { Permiso } from '../../permiso/entities/permiso.entity';
+import { JornadaLaboral } from './jornada-laboral.entity';
 
 @Entity('usuario')
 export class Usuario {
@@ -20,17 +28,20 @@ export class Usuario {
   @Column({ length: 255, select: false })
   password_hash: string;
 
-  @Column({ length: 20 })
+  @Column({ length: 20, default: 'ACTIVO' })
   estado: string; // ACTIVO / INACTIVO
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @CreateDateColumn({ type: 'timestamptz' })
   creado_en: Date;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @UpdateDateColumn({ type: 'timestamptz' })
   actualizado_en: Date;
 
   @Column({ type: 'varchar', length: 20 })
   id_rol: string; // ADMIN, FUNCIONARIO, RRHH
+
+  @OneToMany(() => JornadaLaboral, (j) => j.usuario)
+  jornadas: JornadaLaboral[];
 
   @OneToMany(() => Asistencia, (a) => a.usuario)
   asistencias: Asistencia[];
