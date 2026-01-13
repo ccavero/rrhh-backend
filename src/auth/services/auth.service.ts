@@ -21,7 +21,6 @@ export class AuthService {
 
     const usuario = await this.usuarioRepo.findOne({
       where: { email: emailNorm },
-      // incluir password_hash explícitamente (select: false)
       select: [
         'id_usuario',
         'nombre',

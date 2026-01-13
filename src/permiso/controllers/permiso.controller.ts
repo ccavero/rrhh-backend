@@ -1,3 +1,4 @@
+// src/permiso/controllers/permiso.controller.ts
 import {
   Body,
   Controller,
@@ -26,7 +27,7 @@ import {
 } from '@nestjs/swagger';
 
 @ApiTags('permisos')
-@ApiBearerAuth()
+@ApiBearerAuth('jwt') // ✅ IMPORTANTE: debe coincidir con el nombre del esquema en main.ts
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('permisos')
 export class PermisoController {
@@ -93,9 +94,6 @@ export class PermisoController {
     return this.permisoService.resolver(id, dto, usuario.id_usuario);
   }
 
-  // ======================================================
-  // LISTAR MIS PERMISOS (cualquier usuario autenticado)
-  // ======================================================
   @Get('mios')
   @Roles('FUNCIONARIO', 'ADMIN', 'RRHH')
   @ApiOperation({

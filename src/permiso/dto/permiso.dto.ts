@@ -10,9 +10,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UsuarioResponseDto } from '../../usuario/dto/usuario.dto';
 import { EstadoPermiso, TipoPermiso } from '../entities/permiso.entity';
 
-// ===========================================================
-// DTO: Crear Permiso
-// ===========================================================
 export class CrearPermisoDto {
   @ApiProperty({
     example: TipoPermiso.VACACION,
@@ -46,9 +43,6 @@ export class CrearPermisoDto {
   fecha_fin: string;
 }
 
-// ===========================================================
-// DTO: Resolver Permiso (RRHH/ADMIN)
-// ===========================================================
 export class ResolverPermisoDto {
   @ApiProperty({
     example: EstadoPermiso.APROBADO,
@@ -78,9 +72,6 @@ export class ResolverPermisoDto {
   observacion_resolucion?: string;
 }
 
-// ===========================================================
-// DTO: Respuesta
-// ===========================================================
 export class PermisoResponseDto {
   @ApiProperty({ example: 'fb92b77e-b0e5-4b5d-844e-cbe6201b795a' })
   id_permiso: string;

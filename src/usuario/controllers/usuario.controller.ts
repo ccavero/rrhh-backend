@@ -1,3 +1,4 @@
+// src/usuario/controllers/usuario.controller.ts
 import {
   Controller,
   Get,
@@ -29,7 +30,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { User } from '../../common/decorators/user.decorator';
 
 @ApiTags('usuarios')
-@ApiBearerAuth()
+@ApiBearerAuth('jwt')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('usuarios')
 export class UsuarioController {

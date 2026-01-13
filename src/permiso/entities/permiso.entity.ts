@@ -44,7 +44,6 @@ export class Permiso {
   @Column({ type: 'enum', enum: EstadoPermiso, default: EstadoPermiso.PENDIENTE })
   estado: EstadoPermiso;
 
-  // ✅ se decide al resolver (RRHH/ADMIN)
   @Column({ type: 'boolean', default: false })
   con_goce: boolean;
 

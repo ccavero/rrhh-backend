@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, MoreThan, LessThan } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 
 import { Asistencia } from '../entities/asistencia.entity';
 import { Usuario } from '../../usuario/entities/usuario.entity';
@@ -41,9 +41,6 @@ export class AsistenciaService {
       private readonly permisoService: PermisoService,
   ) {}
 
-  // ======================================================
-  // HELPERS (Bolivia UTC-4 sin DST)
-  // ======================================================
   private static readonly BO_OFFSET_MIN = -4 * 60; // -240
 
   private assertGestor(actor: UsuarioAuth) {
@@ -52,10 +49,6 @@ export class AsistenciaService {
     }
   }
 
-  /**
-   * Convierte un instante (Date) a “hora Bolivia” para formatear (ymd/hhmm).
-   * OJO: Solo para formateo, no para comparar rangos.
-   */
   private toBolivia(date: Date): Date {
     return new Date(date.getTime() + AsistenciaService.BO_OFFSET_MIN * 60_000);
   }
@@ -69,22 +62,14 @@ export class AsistenciaService {
     return this.toBolivia(date).toISOString().slice(11, 16);
   }
 
-  /**
-   * Retorna el instante UTC correspondiente a 00:00 Bolivia del día de `date`.
-   * (00:00 BO == 04:00 UTC)
-   */
   private startOfDayBO(date: Date): Date {
     const bo = this.toBolivia(date);
     const y = bo.getUTCFullYear();
     const m = bo.getUTCMonth();
     const d = bo.getUTCDate();
-    // 00:00 Bolivia => 04:00 UTC
     return new Date(Date.UTC(y, m, d, 4, 0, 0, 0));
   }
 
-  /**
-   * Fin exclusivo del día Bolivia: start + 1 día
-   */
   private endExclusiveOfDayBO(date: Date): Date {
     const start = this.startOfDayBO(date);
     const end = new Date(start);
@@ -93,7 +78,6 @@ export class AsistenciaService {
   }
 
   private async getMinutosObjetivo(id_usuario: string, fecha: Date): Promise<number> {
-    // Día de semana según Bolivia
     const bo = this.toBolivia(fecha);
     const jsDay = bo.getUTCDay(); // 0..6
     const diaSemana = jsDay === 0 ? 7 : jsDay;
@@ -105,13 +89,6 @@ export class AsistenciaService {
     return jornada?.minutos_objetivo ?? 0;
   }
 
-  // ======================================================
-  // MARCAR ASISTENCIA (ENTRADA / SALIDA)
-  // Reglas:
-  // - No 2 marcas consecutivas del mismo tipo
-  // - No SALIDA sin ENTRADA
-  // - Si ya existe una SALIDA hoy (BO), no se puede marcar nada más ese día
-  // ======================================================
   async marcar(
       actor: UsuarioAuth,
       dto: MarcarAsistenciaDto,
@@ -138,8 +115,6 @@ export class AsistenciaService {
 
     const startHoy = this.startOfDayBO(ahora);
     const endHoyEx = this.endExclusiveOfDayBO(ahora);
-
-    // Si ya marcó SALIDA hoy → bloquear todo
     const yaSalio = await this.asistenciaRepo.exist({
       where: {
         id_usuario: actor.id_usuario,
@@ -215,9 +190,6 @@ export class AsistenciaService {
     });
   }
 
-  // ======================================================
-  // RESUMEN DIARIO (Bolivia)
-  // ======================================================
   async resumenDiarioDeUsuario(
       actor: UsuarioAuth,
       idUsuario: string,

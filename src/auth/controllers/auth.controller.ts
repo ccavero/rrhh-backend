@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { LoginDto, LoginResponseDto } from '../dto/login.dto';
 import {
@@ -15,6 +15,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @HttpCode(200)
   @ApiOperation({
     summary: 'Iniciar sesión',
     description: 'Valida las credenciales del usuario y genera un token JWT.',

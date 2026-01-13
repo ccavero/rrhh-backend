@@ -11,6 +11,6 @@ import { PermisoController } from './controllers/permiso.controller';
   imports: [TypeOrmModule.forFeature([Permiso, Usuario])],
   controllers: [PermisoController],
   providers: [PermisoService],
-  exports: [PermisoService], // 👈 CLAVE para usarlo desde Asistencia
+  exports: [PermisoService],
 })
 export class PermisoModule {}

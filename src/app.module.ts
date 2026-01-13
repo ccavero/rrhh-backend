@@ -6,6 +6,8 @@ import { UsuarioModule } from './usuario/usuario.module';
 import { AsistenciaModule } from './asistencia/asistencia.module';
 import { PermisoModule } from './permiso/permiso.module';
 import { AuthModule } from './auth/auth.module';
+import {CargoModule} from "./cargo/cargo.module";
+import {TareaModule} from "./tarea/tarea.module";
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { AuthModule } from './auth/auth.module';
     }),
 
     UsuarioModule,
+    CargoModule,
+    TareaModule,
     AsistenciaModule,
     PermisoModule,
     AuthModule,

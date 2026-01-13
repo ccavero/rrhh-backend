@@ -13,7 +13,7 @@ import { PermisoModule } from '../permiso/permiso.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Asistencia, Usuario, JornadaLaboral]),
-    PermisoModule, // 👈 para poder inyectar PermisoService
+    PermisoModule,
   ],
   providers: [AsistenciaService],
   controllers: [AsistenciaController],

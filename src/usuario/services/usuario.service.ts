@@ -1,4 +1,4 @@
-// src/modules/usuarios/services/usuario.service.ts
+// src/modules/usuarios/services/usuario.services.ts
 import {
   Injectable,
   NotFoundException,
@@ -82,7 +82,6 @@ export class UsuarioService {
     return u;
   }
 
-  // ✅ Perfil del usuario autenticado (solo lectura)
   async miPerfil(actor: UsuarioAuth) {
     if (!actor?.id_usuario) {
       throw new ForbiddenException('No autenticado');
@@ -99,7 +98,6 @@ export class UsuarioService {
     return this.sanitize(usuario);
   }
 
-  // ✅ Ver mi jornada (cualquier autenticado)
   async miJornada(actor: UsuarioAuth) {
     if (!actor?.id_usuario) {
       throw new ForbiddenException('No autenticado');
@@ -116,7 +114,6 @@ export class UsuarioService {
     };
   }
 
-  // ✅ Ver jornada de un usuario (solo RRHH/ADMIN)
   async jornadaDeUsuario(actor: UsuarioAuth, id_usuario: string) {
     this.assertGestor(actor);
     await this.assertUsuarioExiste(id_usuario);
@@ -132,7 +129,6 @@ export class UsuarioService {
     };
   }
 
-  // ✅ Reemplazo completo de jornada semanal (solo RRHH/ADMIN)
   async setJornada(actor: UsuarioAuth, id_usuario: string, dto: SetJornadaSemanalDto) {
     this.assertGestor(actor);
     await this.assertUsuarioExiste(id_usuario);
@@ -142,10 +138,8 @@ export class UsuarioService {
     await this.dataSource.transaction(async (manager) => {
       const jornadaRepoTx = manager.getRepository(JornadaLaboral);
 
-      // borrar jornada actual
       await jornadaRepoTx.delete({ id_usuario });
 
-      // insertar nueva jornada
       const nuevas = dto.dias.map((d) =>
           jornadaRepoTx.create({
             id_usuario,
@@ -164,9 +158,6 @@ export class UsuarioService {
     return this.jornadaDeUsuario(actor, id_usuario);
   }
 
-  /**
-   * ✅ Crear usuario + jornada en una sola transacción
-   */
   async crearConJornada(actor: UsuarioAuth, dto: CrearUsuarioConJornadaDto) {
     this.assertGestor(actor);
 
@@ -174,7 +165,6 @@ export class UsuarioService {
       throw new ForbiddenException('RRHH no puede crear usuarios ADMIN');
     }
 
-    // ✅ DTO nuevo: jornada es { dias: [...] }
     this.validarJornada(dto.jornada?.dias);
 
     const email = dto.email.toLowerCase().trim();
@@ -196,13 +186,11 @@ export class UsuarioService {
         email,
         password_hash: hash,
         id_rol: dto.id_rol,
-        // ✅ respeta estado si viene del front
         estado: (dto as any).estado ?? 'ACTIVO',
       });
 
       const usuarioGuardado = await usuarioRepoTx.save(nuevo);
 
-      // ✅ DTO nuevo: dto.jornada.dias
       const jornadas = dto.jornada.dias.map((d) =>
           jornadaRepoTx.create({
             id_usuario: usuarioGuardado.id_usuario,

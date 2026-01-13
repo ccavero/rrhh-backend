@@ -1,3 +1,4 @@
+// src/usuario/entities/usuario.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -6,9 +7,13 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+
 import { Asistencia } from '../../asistencia/entities/asistencia.entity';
 import { Permiso } from '../../permiso/entities/permiso.entity';
 import { JornadaLaboral } from './jornada-laboral.entity';
+
+import { CargoMovimiento } from '../../cargo/entities/cargo-movimiento.entity';
+import { Tarea } from '../../tarea/entities/tarea.entity';
 
 @Entity('usuario')
 export class Usuario {
@@ -24,12 +29,11 @@ export class Usuario {
   @Column({ length: 120, unique: true })
   email: string;
 
-  // ⚠ Seguridad: este campo no debe salir en consultas normales
   @Column({ length: 255, select: false })
   password_hash: string;
 
   @Column({ length: 20, default: 'ACTIVO' })
-  estado: string; // ACTIVO / INACTIVO
+  estado: string;
 
   @CreateDateColumn({ type: 'timestamptz' })
   creado_en: Date;
@@ -38,7 +42,7 @@ export class Usuario {
   actualizado_en: Date;
 
   @Column({ type: 'varchar', length: 20 })
-  id_rol: string; // ADMIN, FUNCIONARIO, RRHH
+  id_rol: string;
 
   @OneToMany(() => JornadaLaboral, (j) => j.usuario)
   jornadas: JornadaLaboral[];
@@ -54,4 +58,16 @@ export class Usuario {
 
   @OneToMany(() => Permiso, (p) => p.resolvedor)
   permisos_resueltos: Permiso[];
+
+  @OneToMany(() => CargoMovimiento, (m) => m.usuario)
+  movimientos_cargo: CargoMovimiento[];
+
+  @OneToMany(() => CargoMovimiento, (m) => m.creadoPorUsuario)
+  movimientos_cargo_creados: CargoMovimiento[];
+
+  @OneToMany(() => Tarea, (t) => t.asignadoA)
+  tareas_asignadas_a: Tarea[];
+
+  @OneToMany(() => Tarea, (t) => t.asignadoPor)
+  tareas_asignadas_por: Tarea[];
 }

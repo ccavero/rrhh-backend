@@ -19,7 +19,6 @@ export class Asistencia {
   @PrimaryGeneratedColumn('uuid')
   id_asistencia: string;
 
-  // Momento real de la marca (inicio/fin). Usamos timestamptz para evitar líos de TZ.
   @Column({ type: 'timestamptz' })
   fecha_hora: Date;
 
@@ -36,7 +35,6 @@ export class Asistencia {
   @Column({ type: 'varchar', length: 50, nullable: true })
   ip_registro: string | null;
 
-  // Motivo/observación (especialmente para correcciones manuales o anulaciones)
   @Column({ type: 'varchar', length: 255, nullable: true })
   observacion?: string | null;
 
@@ -47,7 +45,6 @@ export class Asistencia {
   @Column({ type: 'uuid' })
   id_usuario: string;
 
-  // Quien valida/corrige (RRHH/ADMIN). Nulo en marcas normales del usuario.
   @ManyToOne(() => Usuario, (u) => u.asistencias_validadas, { nullable: true })
   @JoinColumn({ name: 'id_validador' })
   validador?: Usuario | null;
@@ -55,7 +52,6 @@ export class Asistencia {
   @Column({ type: 'uuid', nullable: true })
   id_validador?: string | null;
 
-  // Auditoría técnica: cuándo se guardó en el sistema
   @CreateDateColumn({ type: 'timestamptz' })
   creado_en: Date;
 }
