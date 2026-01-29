@@ -1,4 +1,3 @@
-// src/tarea/controllers/tarea.controller.ts
 import {
     Body,
     Controller,
@@ -21,6 +20,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { User } from '../../common/decorators/user.decorator';
 
+import { Audit } from '../../audit/audit.decorator';
+
 import { TareaService } from '../services/tarea.service';
 import {
     ActualizarTareaDto,
@@ -39,33 +40,49 @@ export class TareaController {
     @Get()
     @ApiOperation({ summary: 'Ver todas las tareas (ADMIN/RRHH)' })
     @ApiResponse({ status: 200, description: 'Listado de tareas' })
-    @ApiResponse({ status: 401, description: 'Unauthorized' })
-    @ApiResponse({ status: 403, description: 'Forbidden' })
     todas(@User() actor: any) {
         return this.service.todas(actor);
     }
 
     @Roles('ADMIN', 'RRHH')
     @Post()
+    @Audit({
+        action: 'TAREA_CREAR',
+        resource: 'tarea',
+        getMetadata: (ctx) => {
+            const req = ctx.switchToHttp().getRequest<any>();
+            const b = req.body ?? {};
+            return {
+                titulo: b?.titulo ?? null,
+                id_asignado_a: b?.id_asignado_a ?? null,
+                fecha_limite: b?.fecha_limite ?? null,
+            };
+        },
+    })
     @ApiOperation({ summary: 'Crear tarea (ADMIN/RRHH)' })
-    @ApiResponse({ status: 201, description: 'Tarea creada' })
-    @ApiResponse({ status: 400, description: 'Datos inválidos' })
-    @ApiResponse({ status: 401, description: 'Unauthorized' })
-    @ApiResponse({ status: 403, description: 'Forbidden' })
-    @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
     crear(@User() actor: any, @Body() dto: CrearTareaDto) {
         return this.service.crear(actor, dto);
     }
 
     @Roles('ADMIN', 'RRHH')
     @Patch(':id_tarea')
+    @Audit({
+        action: 'TAREA_ACTUALIZAR',
+        resource: 'tarea',
+        entityIdParam: 'id_tarea',
+        getMetadata: (ctx) => {
+            const req = ctx.switchToHttp().getRequest<any>();
+            const b = req.body ?? {};
+            return {
+                titulo: b?.titulo ?? null,
+                descripcion: b?.descripcion ?? null,
+                fecha_limite: b?.fecha_limite ?? null,
+                id_asignado_a: b?.id_asignado_a ?? null,
+            };
+        },
+    })
     @ApiOperation({ summary: 'Actualizar una tarea (ADMIN/RRHH)' })
     @ApiParam({ name: 'id_tarea', type: String })
-    @ApiResponse({ status: 200, description: 'Tarea actualizada' })
-    @ApiResponse({ status: 400, description: 'Datos inválidos' })
-    @ApiResponse({ status: 401, description: 'Unauthorized' })
-    @ApiResponse({ status: 403, description: 'Forbidden' })
-    @ApiResponse({ status: 404, description: 'Tarea no encontrada / Usuario no encontrado' })
     actualizar(
         @User() actor: any,
         @Param('id_tarea') id_tarea: string,
@@ -78,18 +95,12 @@ export class TareaController {
     @Get('usuario/:id_usuario')
     @ApiOperation({ summary: 'Ver tareas de un usuario (ADMIN/RRHH)' })
     @ApiParam({ name: 'id_usuario', type: String })
-    @ApiResponse({ status: 200, description: 'Listado de tareas del usuario' })
-    @ApiResponse({ status: 401, description: 'Unauthorized' })
-    @ApiResponse({ status: 403, description: 'Forbidden' })
-    @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
     deUsuario(@User() actor: any, @Param('id_usuario') id_usuario: string) {
         return this.service.deUsuario(actor, id_usuario);
     }
 
     @Get('mias')
     @ApiOperation({ summary: 'Ver mis tareas (usuario autenticado)' })
-    @ApiResponse({ status: 200, description: 'Listado de mis tareas' })
-    @ApiResponse({ status: 401, description: 'Unauthorized' })
     mias(@User() actor: any) {
         return this.service.mias(actor);
     }
@@ -97,26 +108,22 @@ export class TareaController {
     @Roles('ADMIN', 'RRHH')
     @Get('asignadas')
     @ApiOperation({ summary: 'Ver tareas asignadas por mí (ADMIN/RRHH)' })
-    @ApiResponse({
-        status: 200,
-        description: 'Listado de tareas asignadas por el actor',
-    })
-    @ApiResponse({ status: 401, description: 'Unauthorized' })
-    @ApiResponse({ status: 403, description: 'Forbidden' })
     asignadas(@User() actor: any) {
         return this.service.asignadasPorMi(actor);
     }
 
     @Patch(':id_tarea/estado')
-    @ApiOperation({
-        summary: 'Cambiar estado de una tarea (asignado o ADMIN/RRHH)',
+    @Audit({
+        action: 'TAREA_CAMBIAR_ESTADO',
+        resource: 'tarea',
+        entityIdParam: 'id_tarea',
+        getMetadata: (ctx) => {
+            const req = ctx.switchToHttp().getRequest<any>();
+            return { estado: req.body?.estado ?? null };
+        },
     })
+    @ApiOperation({ summary: 'Cambiar estado de una tarea (asignado o ADMIN/RRHH)' })
     @ApiParam({ name: 'id_tarea', type: String })
-    @ApiResponse({ status: 200, description: 'Tarea actualizada' })
-    @ApiResponse({ status: 400, description: 'Datos inválidos' })
-    @ApiResponse({ status: 401, description: 'Unauthorized' })
-    @ApiResponse({ status: 403, description: 'Forbidden' })
-    @ApiResponse({ status: 404, description: 'Tarea no encontrada' })
     cambiarEstado(
         @User() actor: any,
         @Param('id_tarea') id_tarea: string,

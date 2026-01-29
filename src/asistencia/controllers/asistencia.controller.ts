@@ -1,4 +1,3 @@
-// src/asistencia/controllers/asistencia.controller.ts
 import {
   Body,
   Controller,
@@ -24,6 +23,8 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 
+import { Audit } from '../../audit/audit.decorator';
+
 import { AsistenciaService } from '../services/asistencia.service';
 import {
   AnularAsistenciaDto,
@@ -41,9 +42,24 @@ export class AsistenciaController {
   constructor(private readonly asistenciaService: AsistenciaService) {}
 
   @Post()
+  @Audit({
+    action: 'ASISTENCIA_MARCAR',
+    resource: 'asistencia',
+    // el ID del recurso real se genera en backend, así que no hay param
+    // metadata útil: tipo, fecha_hora (si aplica), ip
+    getMetadata: (ctx) => {
+      const req = ctx.switchToHttp().getRequest<Request>();
+      const body = req.body ?? {};
+      return { tipo: body?.tipo ?? null, fecha_hora: body?.fecha_hora ?? null, ip: req.ip ?? null };
+    },
+  })
   @ApiOperation({ summary: 'Marcar ENTRADA o SALIDA (usuario autenticado)' })
   @ApiResponse({ status: 201, type: AsistenciaResponseDto })
-  marcar(@User() actor: any, @Body() dto: MarcarAsistenciaDto, @Req() req: Request) {
+  marcar(
+      @User() actor: any,
+      @Body() dto: MarcarAsistenciaDto,
+      @Req() req: Request,
+  ) {
     const ip = (req.ip as string) ?? null;
     return this.asistenciaService.marcar(actor, dto, ip);
   }
@@ -58,8 +74,21 @@ export class AsistenciaController {
   @Get('mias/resumen-diario')
   @ApiOperation({ summary: 'Resumen diario de mis asistencias' })
   @ApiResponse({ status: 200, type: [AsistenciaResumenDiarioDto] })
-  resumenDiarioMio(@User() actor: any, @Query('from') from?: string, @Query('to') to?: string) {
-    return this.asistenciaService.resumenDiarioDeUsuario(actor, actor.id_usuario, from, to);
+  resumenDiarioMio(
+      @User() actor: any,
+      @Query('from') from?: string,
+      @Query('to') to?: string,
+      @Query('year') year?: string,
+      @Query('month') month?: string,
+  ) {
+    return this.asistenciaService.resumenDiarioDeUsuario(
+        actor,
+        actor.id_usuario,
+        from,
+        to,
+        year,
+        month,
+    );
   }
 
   @Get('usuario/:id_usuario')
@@ -81,12 +110,34 @@ export class AsistenciaController {
       @Param('id_usuario') id_usuario: string,
       @Query('from') from?: string,
       @Query('to') to?: string,
+      @Query('year') year?: string,
+      @Query('month') month?: string,
   ) {
-    return this.asistenciaService.resumenDiarioDeUsuario(actor, id_usuario, from, to);
+    return this.asistenciaService.resumenDiarioDeUsuario(
+        actor,
+        id_usuario,
+        from,
+        to,
+        year,
+        month,
+    );
   }
 
   @Post('manual')
   @Roles('ADMIN', 'RRHH')
+  @Audit({
+    action: 'ASISTENCIA_CREAR_MANUAL',
+    resource: 'asistencia',
+    getMetadata: (ctx) => {
+      const req = ctx.switchToHttp().getRequest<Request>();
+      const body = req.body ?? {};
+      return {
+        id_usuario: body?.id_usuario ?? null,
+        tipo: body?.tipo ?? null,
+        fecha_hora: body?.fecha_hora ?? null,
+      };
+    },
+  })
   @ApiOperation({ summary: 'Crear asistencia manual (ADMIN/RRHH)' })
   @ApiResponse({ status: 201, type: AsistenciaResponseDto })
   crearManual(@User() actor: any, @Body() dto: CrearAsistenciaManualDto) {
@@ -95,6 +146,15 @@ export class AsistenciaController {
 
   @Patch(':id_asistencia/anular')
   @Roles('ADMIN', 'RRHH')
+  @Audit({
+    action: 'ASISTENCIA_ANULAR',
+    resource: 'asistencia',
+    entityIdParam: 'id_asistencia',
+    getMetadata: (ctx) => {
+      const req = ctx.switchToHttp().getRequest<Request>();
+      return { observacion: req.body?.observacion ?? null };
+    },
+  })
   @ApiParam({ name: 'id_asistencia', type: String })
   @ApiOperation({ summary: 'Anular una asistencia (ADMIN/RRHH)' })
   @ApiResponse({ status: 200, type: AsistenciaResponseDto })

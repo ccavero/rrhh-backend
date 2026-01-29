@@ -1,3 +1,4 @@
+// src/permiso/services/permiso.service.ts
 import {
   Injectable,
   BadRequestException,
@@ -9,6 +10,17 @@ import { Repository } from 'typeorm';
 import { Permiso, EstadoPermiso } from '../entities/permiso.entity';
 import { CrearPermisoDto, ResolverPermisoDto, PermisoResponseDto } from '../dto/permiso.dto';
 import { Usuario } from '../../usuario/entities/usuario.entity';
+
+type FiltroPermisosUsuario = {
+  estado?: 'ALL' | EstadoPermiso;
+  from?: string; // YYYY-MM-DD
+  to?: string;   // YYYY-MM-DD
+};
+
+function isValidYmd(s: string) {
+  // validación simple YYYY-MM-DD
+  return /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
 
 @Injectable()
 export class PermisoService {
@@ -74,6 +86,55 @@ export class PermisoService {
       relations: ['solicitante', 'resolvedor'],
       order: { creado_en: 'DESC' as any },
     });
+    return permisos as unknown as PermisoResponseDto[];
+  }
+
+  // ======================================================
+  // ✅ NUEVO: listar permisos de un usuario (RRHH/ADMIN)
+  // - estado: ALL | PENDIENTE | APROBADO | RECHAZADO
+  // - from/to: filtra por solapamiento con rango
+  // ======================================================
+  async listarDeUsuarioAdmin(
+      id_solicitante: string,
+      filtro: FiltroPermisosUsuario,
+  ): Promise<PermisoResponseDto[]> {
+    // valida que el usuario exista (evita ids basura)
+    const existe = await this.usuarioRepo.findOne({ where: { id_usuario: id_solicitante } });
+    if (!existe) throw new NotFoundException('Usuario no encontrado');
+
+    const estado = filtro.estado ?? 'ALL';
+    const from = filtro.from?.trim();
+    const to = filtro.to?.trim();
+
+    if (from && !isValidYmd(from)) throw new BadRequestException('from inválido (YYYY-MM-DD)');
+    if (to && !isValidYmd(to)) throw new BadRequestException('to inválido (YYYY-MM-DD)');
+
+    const qb = this.permisoRepo
+        .createQueryBuilder('p')
+        .leftJoinAndSelect('p.solicitante', 'solicitante')
+        .leftJoinAndSelect('p.resolvedor', 'resolvedor')
+        .where('p.id_solicitante = :id', { id: id_solicitante });
+
+    if (estado !== 'ALL') {
+      qb.andWhere('p.estado = :estado', { estado });
+    }
+
+    // filtro por solapamiento con rango [from, to]
+    // condición de solapamiento:
+    // p.fecha_inicio <= to AND p.fecha_fin >= from
+    if (from && to) {
+      qb.andWhere('p.fecha_inicio <= :to AND p.fecha_fin >= :from', { from, to });
+    } else if (from && !to) {
+      // desde "from" en adelante: fecha_fin >= from
+      qb.andWhere('p.fecha_fin >= :from', { from });
+    } else if (!from && to) {
+      // hasta "to": fecha_inicio <= to
+      qb.andWhere('p.fecha_inicio <= :to', { to });
+    }
+
+    qb.orderBy('p.creado_en', 'DESC');
+
+    const permisos = await qb.getMany();
     return permisos as unknown as PermisoResponseDto[];
   }
 

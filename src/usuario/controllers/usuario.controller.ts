@@ -1,4 +1,3 @@
-// src/usuario/controllers/usuario.controller.ts
 import {
   Controller,
   Get,
@@ -29,6 +28,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { User } from '../../common/decorators/user.decorator';
 
+import { Audit } from '../../audit/audit.decorator';
+
 @ApiTags('usuarios')
 @ApiBearerAuth('jwt')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -38,18 +39,13 @@ export class UsuarioController {
 
   @Get('me')
   @ApiOperation({ summary: 'Obtener mi perfil (solo lectura)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Perfil del usuario autenticado',
-    type: UsuarioResponseDto,
-  })
+  @ApiResponse({ status: 200, description: 'Perfil del usuario autenticado', type: UsuarioResponseDto })
   miPerfil(@User() actor: any) {
     return this.usuarioService.miPerfil(actor);
   }
 
   @Get('me/jornada')
   @ApiOperation({ summary: 'Obtener mi jornada semanal' })
-  @ApiResponse({ status: 200, description: 'Jornada del usuario autenticado' })
   miJornada(@User() actor: any) {
     return this.usuarioService.miJornada(actor);
   }
@@ -58,16 +54,25 @@ export class UsuarioController {
   @Roles('ADMIN', 'RRHH')
   @ApiOperation({ summary: 'Obtener jornada semanal de un usuario (RRHH/ADMIN)' })
   @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ status: 200, description: 'Jornada del usuario' })
   jornadaDeUsuario(@User() actor: any, @Param('id') id: string) {
     return this.usuarioService.jornadaDeUsuario(actor, id);
   }
 
   @Put(':id/jornada')
   @Roles('ADMIN', 'RRHH')
+  @Audit({
+    action: 'USUARIO_SET_JORNADA',
+    resource: 'usuario',
+    entityIdParam: 'id',
+    getMetadata: (ctx) => {
+      const req = ctx.switchToHttp().getRequest<any>();
+      // ojo: jornada puede ser grande; guardo solo resumen para no inflar
+      const dias = Array.isArray(req.body?.dias) ? req.body.dias.length : undefined;
+      return { dias_count: dias ?? null };
+    },
+  })
   @ApiOperation({ summary: 'Reemplazar jornada semanal de un usuario (RRHH/ADMIN)' })
   @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ status: 200, description: 'Jornada actualizada' })
   setJornada(
       @User() actor: any,
       @Param('id') id: string,
@@ -78,13 +83,16 @@ export class UsuarioController {
 
   @Post()
   @Roles('ADMIN', 'RRHH')
-  @ApiOperation({ summary: 'Crear un nuevo usuario (incluye jornada semanal)' })
-  @ApiResponse({
-    status: 201,
-    description: 'Usuario creado exitosamente',
-    type: UsuarioResponseDto,
+  @Audit({
+    action: 'USUARIO_CREAR',
+    resource: 'usuario',
+    getMetadata: (ctx) => {
+      const req = ctx.switchToHttp().getRequest<any>();
+      const b = req.body ?? {};
+      return { email: b?.email ?? null, id_rol: b?.id_rol ?? null };
+    },
   })
-  @ApiResponse({ status: 400, description: 'Datos inválidos' })
+  @ApiOperation({ summary: 'Crear un nuevo usuario (incluye jornada semanal)' })
   crear(@User() actor: any, @Body() dto: CrearUsuarioConJornadaDto) {
     return this.usuarioService.crearConJornada(actor, dto);
   }
@@ -92,12 +100,6 @@ export class UsuarioController {
   @Get()
   @Roles('ADMIN', 'RRHH')
   @ApiOperation({ summary: 'Listar todos los usuarios' })
-  @ApiResponse({
-    status: 200,
-    description: 'Listado de usuarios obtenido',
-    type: UsuarioResponseDto,
-    isArray: true,
-  })
   listar(@User() actor: any) {
     return this.usuarioService.listar(actor);
   }
@@ -106,26 +108,29 @@ export class UsuarioController {
   @Roles('ADMIN', 'RRHH')
   @ApiOperation({ summary: 'Buscar un usuario por ID' })
   @ApiParam({ name: 'id', type: String })
-  @ApiResponse({
-    status: 200,
-    description: 'Usuario encontrado',
-    type: UsuarioResponseDto,
-  })
-  @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
   buscar(@User() actor: any, @Param('id') id: string) {
     return this.usuarioService.buscar(actor, id);
   }
 
   @Patch(':id')
   @Roles('ADMIN', 'RRHH')
-  @ApiOperation({ summary: 'Actualizar un usuario' })
-  @ApiParam({ name: 'id', type: String })
-  @ApiResponse({
-    status: 200,
-    description: 'Usuario actualizado',
-    type: UsuarioResponseDto,
+  @Audit({
+    action: 'USUARIO_ACTUALIZAR',
+    resource: 'usuario',
+    entityIdParam: 'id',
+    getMetadata: (ctx) => {
+      const req = ctx.switchToHttp().getRequest<any>();
+      const b = req.body ?? {};
+      return {
+        nombre: b?.nombre ?? null,
+        apellido: b?.apellido ?? null,
+        email: b?.email ?? null,
+        id_rol: b?.id_rol ?? null,
+        estado: b?.estado ?? null,
+      };
+    },
   })
-  @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
+  @ApiOperation({ summary: 'Actualizar un usuario' })
   actualizar(
       @User() actor: any,
       @Param('id') id: string,
@@ -136,10 +141,12 @@ export class UsuarioController {
 
   @Delete(':id')
   @Roles('ADMIN', 'RRHH')
+  @Audit({
+    action: 'USUARIO_ELIMINAR',
+    resource: 'usuario',
+    entityIdParam: 'id',
+  })
   @ApiOperation({ summary: 'Eliminar un usuario' })
-  @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ status: 200, description: 'Usuario eliminado' })
-  @ApiResponse({ status: 404, description: 'Usuario no encontrado' })
   eliminar(@User() actor: any, @Param('id') id: string) {
     return this.usuarioService.eliminar(actor, id);
   }

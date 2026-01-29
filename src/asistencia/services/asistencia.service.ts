@@ -41,7 +41,7 @@ export class AsistenciaService {
       private readonly permisoService: PermisoService,
   ) {}
 
-  private static readonly BO_OFFSET_MIN = -4 * 60; // -240
+  private static readonly BO_OFFSET_MIN = -4 * 60;
 
   private assertGestor(actor: UsuarioAuth) {
     if (!actor || (actor.id_rol !== 'ADMIN' && actor.id_rol !== 'RRHH')) {
@@ -77,9 +77,69 @@ export class AsistenciaService {
     return end;
   }
 
+  private parseYearMonth(year?: string, month?: string): { year: number; month: number } | null {
+    if (!year || !month) return null;
+
+    const y = Number(year);
+    const m = Number(month);
+
+    if (!Number.isInteger(y) || y < 2000 || y > 2100) {
+      throw new BadRequestException('year inválido');
+    }
+    if (!Number.isInteger(m) || m < 1 || m > 12) {
+      throw new BadRequestException('month inválido (1..12)');
+    }
+
+    return { year: y, month: m };
+  }
+
+  private computeRange(
+      from?: string,
+      to?: string,
+      year?: string,
+      month?: string,
+  ): { start: Date; endExclusive: Date } {
+    const now = new Date();
+    const boNow = this.toBolivia(now);
+
+    if (from || to) {
+      const start = from
+          ? this.startOfDayBO(new Date(from))
+          : this.startOfDayBO(new Date(Date.UTC(boNow.getUTCFullYear(), boNow.getUTCMonth(), 1)));
+
+      const end = to
+          ? this.startOfDayBO(new Date(to))
+          : this.startOfDayBO(
+              new Date(Date.UTC(boNow.getUTCFullYear(), boNow.getUTCMonth(), boNow.getUTCDate())),
+          );
+
+      if (Number.isNaN(start.getTime())) throw new BadRequestException('from inválido');
+      if (Number.isNaN(end.getTime())) throw new BadRequestException('to inválido');
+
+      const endExclusive = new Date(end);
+      endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+      return { start, endExclusive };
+    }
+
+    const ym = this.parseYearMonth(year, month);
+    if (ym) {
+      const start = this.startOfDayBO(new Date(Date.UTC(ym.year, ym.month - 1, 1)));
+      const endExclusive = this.startOfDayBO(new Date(Date.UTC(ym.year, ym.month, 1)));
+      return { start, endExclusive };
+    }
+
+    const start = this.startOfDayBO(new Date(Date.UTC(boNow.getUTCFullYear(), boNow.getUTCMonth(), 1)));
+    const end = this.startOfDayBO(
+        new Date(Date.UTC(boNow.getUTCFullYear(), boNow.getUTCMonth(), boNow.getUTCDate())),
+    );
+    const endExclusive = new Date(end);
+    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+    return { start, endExclusive };
+  }
+
   private async getMinutosObjetivo(id_usuario: string, fecha: Date): Promise<number> {
     const bo = this.toBolivia(fecha);
-    const jsDay = bo.getUTCDay(); // 0..6
+    const jsDay = bo.getUTCDay();
     const diaSemana = jsDay === 0 ? 7 : jsDay;
 
     const jornada = await this.jornadaRepo.findOne({
@@ -103,10 +163,7 @@ export class AsistenciaService {
 
     const ahora = new Date();
 
-    const permiso = await this.permisoService.tienePermisoAprobadoEnFecha(
-        actor.id_usuario,
-        ahora,
-    );
+    const permiso = await this.permisoService.tienePermisoAprobadoEnFecha(actor.id_usuario, ahora);
     if (permiso.bloquea) {
       throw new BadRequestException(
           'No puede marcar asistencia: tiene permiso APROBADO para esta fecha',
@@ -115,6 +172,7 @@ export class AsistenciaService {
 
     const startHoy = this.startOfDayBO(ahora);
     const endHoyEx = this.endExclusiveOfDayBO(ahora);
+
     const yaSalio = await this.asistenciaRepo.exist({
       where: {
         id_usuario: actor.id_usuario,
@@ -195,24 +253,14 @@ export class AsistenciaService {
       idUsuario: string,
       from?: string,
       to?: string,
+      year?: string,
+      month?: string,
   ): Promise<AsistenciaResumenDiarioDto[]> {
     const esMismo = actor.id_usuario === idUsuario;
     const esGestor = actor.id_rol === 'ADMIN' || actor.id_rol === 'RRHH';
     if (!esMismo && !esGestor) throw new ForbiddenException('No autorizado');
 
-    const now = new Date();
-    const boNow = this.toBolivia(now);
-
-    const start = from
-        ? this.startOfDayBO(new Date(from))
-        : this.startOfDayBO(new Date(Date.UTC(boNow.getUTCFullYear(), boNow.getUTCMonth(), 1)));
-
-    const end = to
-        ? this.startOfDayBO(new Date(to))
-        : this.startOfDayBO(new Date(Date.UTC(boNow.getUTCFullYear(), boNow.getUTCMonth(), boNow.getUTCDate())));
-
-    const endExclusive = new Date(end);
-    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+    const { start, endExclusive } = this.computeRange(from, to, year, month);
 
     const asistencias = await this.asistenciaRepo.find({
       where: {
@@ -239,11 +287,10 @@ export class AsistenciaService {
       const lista = porDia.get(key) ?? [];
 
       const boCursor = this.toBolivia(cursor);
-      const jsDay = boCursor.getUTCDay(); // 0..6
+      const jsDay = boCursor.getUTCDay();
       const esFDS = jsDay === 0 || jsDay === 6;
 
       const minutosObjetivo = await this.getMinutosObjetivo(idUsuario, cursor);
-
       const permiso = await this.permisoService.tienePermisoAprobadoEnFecha(idUsuario, cursor);
 
       let horaEntrada: Date | null = null;
