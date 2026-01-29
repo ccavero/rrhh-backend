@@ -6,8 +6,8 @@ export type AuditMeta = {
     action: string;
     resource?: string;
     entity?: string;
-    entityIdParam?: string; // ej: "id"
-    entityIdBodyKey?: string; // ej: "id_usuario"
+    entityIdParam?: string;
+    entityIdBodyKey?: string;
     skipBody?: boolean;
     getMetadata?: (ctx: ExecutionContext) => Record<string, any> | undefined;
 };
