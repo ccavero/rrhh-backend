@@ -9,11 +9,13 @@ import { AsistenciaService } from './services/asistencia.service';
 import { AsistenciaController } from './controllers/asistencia.controller';
 
 import { PermisoModule } from '../permiso/permiso.module';
+import {FeriadoModule} from "../feriado/feriado.module";
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Asistencia, Usuario, JornadaLaboral]),
     PermisoModule,
+    FeriadoModule,
   ],
   providers: [AsistenciaService],
   controllers: [AsistenciaController],

@@ -20,10 +20,17 @@ import {
 
 import { AsistenciaResumenDiarioDto } from '../dto/asistencia-resumen-diario.dto';
 import { PermisoService } from '../../permiso/services/permiso.service';
+import { FeriadoService } from '../../feriado/services/feriado.service';
 
 type UsuarioAuth = {
   id_usuario: string;
   id_rol: 'ADMIN' | 'RRHH' | 'FUNCIONARIO' | string;
+};
+
+type JornadaInfo = {
+  minutosObjetivo: number;
+  horaInicio: string | null;
+  toleranciaMinutos: number;
 };
 
 @Injectable()
@@ -39,6 +46,7 @@ export class AsistenciaService {
       private readonly jornadaRepo: Repository<JornadaLaboral>,
 
       private readonly permisoService: PermisoService,
+      private readonly feriadoService: FeriadoService,
   ) {}
 
   private static readonly BO_OFFSET_MIN = -4 * 60;
@@ -137,7 +145,16 @@ export class AsistenciaService {
     return { start, endExclusive };
   }
 
-  private async getMinutosObjetivo(id_usuario: string, fecha: Date): Promise<number> {
+  private hhmmStringToMinutes(value: string | null | undefined): number | null {
+    if (!value) return null;
+    const parts = value.split(':').map(Number);
+    if (parts.length < 2) return null;
+    const [hh, mm] = parts;
+    if (!Number.isInteger(hh) || !Number.isInteger(mm)) return null;
+    return hh * 60 + mm;
+  }
+
+  private async getJornadaInfo(id_usuario: string, fecha: Date): Promise<JornadaInfo> {
     const bo = this.toBolivia(fecha);
     const jsDay = bo.getUTCDay();
     const diaSemana = jsDay === 0 ? 7 : jsDay;
@@ -146,7 +163,11 @@ export class AsistenciaService {
       where: { id_usuario, dia_semana: diaSemana as any, activo: true } as any,
     });
 
-    return jornada?.minutos_objetivo ?? 0;
+    return {
+      minutosObjetivo: jornada?.minutos_objetivo ?? 0,
+      horaInicio: jornada?.hora_inicio?.slice(0, 5) ?? null,
+      toleranciaMinutos: jornada?.tolerancia_minutos ?? 0,
+    };
   }
 
   async marcar(
@@ -167,6 +188,13 @@ export class AsistenciaService {
     if (permiso.bloquea) {
       throw new BadRequestException(
           'No puede marcar asistencia: tiene permiso APROBADO para esta fecha',
+      );
+    }
+
+    const feriado = await this.feriadoService.obtenerActivoEnFecha(this.ymd(ahora));
+    if (feriado) {
+      throw new BadRequestException(
+          'No puede marcar asistencia: la fecha corresponde a un feriado activo.',
       );
     }
 
@@ -290,15 +318,20 @@ export class AsistenciaService {
       const jsDay = boCursor.getUTCDay();
       const esFDS = jsDay === 0 || jsDay === 6;
 
-      const minutosObjetivo = await this.getMinutosObjetivo(idUsuario, cursor);
+      const jornadaInfo = await this.getJornadaInfo(idUsuario, cursor);
       const permiso = await this.permisoService.tienePermisoAprobadoEnFecha(idUsuario, cursor);
+      const feriado = await this.feriadoService.obtenerActivoEnFecha(key);
 
       let horaEntrada: Date | null = null;
       let horaSalida: Date | null = null;
       let minutosTrabajados = 0;
       let estado: AsistenciaResumenDiarioDto['estado'] = 'SIN_REGISTRO';
+      let atrasoMinutos = 0;
+      let fueAtraso = false;
 
-      if (permiso.bloquea) {
+      if (feriado && lista.length === 0) {
+        estado = 'FERIADO';
+      } else if (permiso.bloquea) {
         estado = 'PERMISO';
       } else if (esFDS) {
         estado = 'FDS';
@@ -321,6 +354,19 @@ export class AsistenciaService {
         } else {
           estado = 'INCOMPLETO';
         }
+
+        if (horaEntrada && jornadaInfo.horaInicio) {
+          const entradaMin = this.hhmmStringToMinutes(this.hhmm(horaEntrada));
+          const inicioJornadaMin = this.hhmmStringToMinutes(jornadaInfo.horaInicio);
+
+          if (entradaMin !== null && inicioJornadaMin !== null) {
+            atrasoMinutos = Math.max(
+                entradaMin - inicioJornadaMin - jornadaInfo.toleranciaMinutos,
+                0,
+            );
+            fueAtraso = atrasoMinutos > 0;
+          }
+        }
       }
 
       resultados.push({
@@ -328,8 +374,12 @@ export class AsistenciaService {
         horaEntrada: this.hhmm(horaEntrada),
         horaSalida: this.hhmm(horaSalida),
         minutosTrabajados,
-        minutosObjetivo,
+        minutosObjetivo: jornadaInfo.minutosObjetivo,
         estado,
+        horaInicioJornada: jornadaInfo.horaInicio ?? undefined,
+        toleranciaMinutos: jornadaInfo.toleranciaMinutos,
+        atrasoMinutos,
+        fueAtraso,
       });
 
       cursor.setUTCDate(cursor.getUTCDate() + 1);
@@ -346,6 +396,13 @@ export class AsistenciaService {
 
     const fecha = dto.fecha_hora ? new Date(dto.fecha_hora) : new Date();
     if (Number.isNaN(fecha.getTime())) throw new BadRequestException('fecha_hora inválida');
+
+    const feriado = await this.feriadoService.obtenerActivoEnFecha(this.ymd(fecha));
+    if (feriado) {
+      throw new BadRequestException(
+          'No puede crear asistencia manual: la fecha corresponde a un feriado activo.',
+      );
+    }
 
     const nuevo = this.asistenciaRepo.create({
       id_usuario: dto.id_usuario,

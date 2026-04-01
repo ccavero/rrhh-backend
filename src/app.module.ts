@@ -12,6 +12,7 @@ import { TareaModule } from './tarea/tarea.module';
 
 import { AuditModule } from './audit/audit.module';
 import { AuditInterceptor } from './audit/audit.interceptor';
+import {FeriadoModule} from "./feriado/feriado.module";
 
 @Module({
   imports: [
@@ -29,6 +30,8 @@ import { AuditInterceptor } from './audit/audit.interceptor';
     }),
 
     AuditModule, // ✅ nuevo
+    FeriadoModule,
+
 
     UsuarioModule,
     CargoModule,
